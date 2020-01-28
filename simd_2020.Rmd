@@ -1,0 +1,90 @@
+---
+title: "SIMD 2020 plot"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: spacelab
+    code_folding: hide
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Intro
+
+Recreate my thesis plot with SIMD 2020 data
+
+###Packages
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggthemes)
+library(readxl)
+library(janitor)
+theme_set(theme_minimal(base_size = 26, base_family = "Roboto"))
+```
+
+
+### Data
+
+From the SG SIMD2020 webpage
+
+```{r}
+simd <- read_excel("raw_data/SIMD_2020_Datazone_lookup_tool.xlsx", sheet = 3)
+```
+
+
+## Tidy up
+
+```{r}
+simd %>% 
+  janitor::clean_names() %>% 
+  select(l_aname, population, simd2020_decile) %>% 
+  rename(la_name = l_aname) %>% 
+  group_by(la_name, simd2020_decile) %>% 
+  mutate(total = sum(population)) %>% 
+  ungroup %>% 
+  distinct(la_name, simd2020_decile, .keep_all = TRUE) %>% 
+  arrange(la_name, simd2020_decile) %>% 
+  group_by(la_name) %>% 
+  mutate(frq = total/sum(total),
+         simd2020_decile = factor(simd2020_decile,
+                                  levels = c(1:10),
+                                  labels = c("1", "2", "3", "4", "5",
+                                             "6", "7", "8", "9", "10"))) %>% 
+  select(-population) -> clean_simd
+clean_simd
+```
+
+
+## Plot
+
+```{r, fig.width=20, fig.height=18}
+clean_simd %>% 
+  ggplot(aes(simd2020_decile, frq, fill = simd2020_decile)) +
+  geom_col() +
+  scale_fill_ptol(guide = guide_legend(nrow = 1),
+                  labels = c("1-most deprived", "2", "3", "4", "5",
+                             "6", "7", "8", "9", "10-most affluent")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  facet_wrap(~la_name, strip.position = "bottom") +
+  theme(legend.position = "bottom",
+        axis.text.x = element_blank()) +
+  labs(title = "Percentage of individuals in SIMD 2020 deciles",
+       subtitle = "by Local Authority",
+       x = "",
+       y = "",
+       fill = "SIMD decile", 
+       caption = "Data from https://www.gov.scot/publications/scottish-index-of-multiple-deprivation-2020-data-zone-look-up/") -> simd_la
+simd_la
+```
+
+
+
+```{r}
+ggsave("simd_2020_plot.png", simd_la, width = 20, height = 18)
+```
+
