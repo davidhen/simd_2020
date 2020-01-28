@@ -1,0 +1,239 @@
+---
+title: "SIMD animated plot"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: spacelab
+    code_folding: hide
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Intro
+
+
+
+## Packages
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggthemes)
+library(gganimate)
+library(glue)
+library(readxl)
+library(janitor)
+library(rlang)
+theme_set(theme_minimal(base_size = 26, base_family = "Roboto"))
+
+pre_2016_decile <- exprs(
+  rank %in% c(1:651) ~ "1",
+  rank %in% c(652:1301) ~ "2",
+  rank %in% c(1302:1952) ~ "3",
+  rank %in% c(1953:2602) ~ "4",
+  rank %in% c(2603:3253) ~ "5",
+  rank %in% c(3254:3903) ~ "6",
+  rank %in% c(3904:4554) ~ "7",
+  rank %in% c(4555:5204) ~ "8",
+  rank %in% c(5205:5855) ~ "9",
+  rank %in% c(5856:6505) ~ "10")
+
+post_2016_decile <- exprs(
+  rank %in% c(1:697) ~ "1",
+  rank %in% c(698:1395) ~ "2",
+  rank %in% c(1396:2092) ~ "3",
+  rank %in% c(2093:2790) ~ "4",
+  rank %in% c(2791:3488) ~ "5",
+  rank %in% c(3489:4185) ~ "6",
+  rank %in% c(4186:4883) ~ "7",
+  rank %in% c(4884:5580) ~ "8",
+  rank %in% c(5581:6278) ~ "9",
+  rank %in% c(6279:6976) ~ "10")
+
+```
+
+
+## Data
+
+### 2006 
+
+```{r}
+simd_2006 <- read_xls("raw_data/SIMD_2006.xls")  %>% 
+  clean_names() %>% 
+  select(local_authority_name, data_zone, total_population_sape_2004, simd_2006_rank) %>% 
+  rename(la = local_authority_name,
+         pop = total_population_sape_2004,
+         rank = simd_2006_rank) %>% 
+  mutate(year = "2006", 
+         decile = case_when(!!!pre_2016_decile), 
+         la = str_replace(la, "Edinburgh, City of", "City of Edinburgh"),
+         la = str_replace(la, "Eilean Siar", "Na h-Eileanan an Iar"))
+
+simd_2006
+```
+
+### 2009
+
+^
+```{r}
+simd_2009 <- read_xls("raw_data/SIMD_2009.xls") %>%  
+  clean_names() %>% 
+  select(local_authority_name, data_zone, 
+         total_population_sape_2007, simd_2009_v2_rank_revised_19_07_10) %>% 
+  rename(la = local_authority_name, 
+         pop = total_population_sape_2007,
+         rank = simd_2009_v2_rank_revised_19_07_10) %>% 
+  mutate(year = "2009",
+         decile = case_when(!!!pre_2016_decile),
+         la = str_replace(la, "Edinburgh, City of", "City of Edinburgh"),
+         la = str_replace(la, "Eilean Siar", "Na h-Eileanan an Iar"))
+
+simd_2009
+```
+
+### 2012
+
+```{r}
+simd_2012 <- read_xls("raw_data/SIMD_2012.xls") %>% 
+  clean_names() %>% 
+  select(local_authority_name, data_zone, 
+         total_population_sape_2010, overall_simd_2012_rank) %>% 
+  rename(la = local_authority_name,
+         pop = total_population_sape_2010,
+         rank = overall_simd_2012_rank) %>% 
+  mutate(year = "2012",
+         decile = case_when(!!!pre_2016_decile),
+         la = str_replace(la, "Edinburgh, City of", "City of Edinburgh"),
+         la = str_replace(la, "Eilean Siar", "Na h-Eileanan an Iar"))
+simd_2012
+```
+
+### 2016
+
+```{r}
+simd_2016 <- read_xlsx("raw_data/SIMD_2016.xlsx", sheet = 2) %>% 
+  clean_names() %>% 
+  select(council_area, x2016, total_population, overall_simd16_rank) %>% 
+  rename(la = council_area,
+         data_zone = x2016,
+         pop = total_population,
+         rank = overall_simd16_rank) %>% 
+  mutate(year = "2016",
+         decile = case_when(!!!post_2016_decile),
+         la = str_replace(la, "Argyll and Bute", "Argyll & Bute"),
+         la = str_replace(la, "Dumfries and Galloway", "Dumfries & Galloway"),
+         la = str_replace(la, "Perth and Kinross", "Perth & Kinross"))
+
+simd_2016
+```
+
+### 2020
+
+```{r}
+simd_2020 <- read_xlsx("raw_data/SIMD_2020.xlsx", sheet = 2) %>% 
+  clean_names() %>% 
+  select(council_area, data_zone, total_population, simd2020_rank) %>% 
+  rename(la = council_area,
+         pop = total_population,
+         rank = simd2020_rank) %>% 
+  mutate(year = "2020",
+         decile = case_when(!!!post_2016_decile),
+         la = str_replace(la, "Argyll and Bute", "Argyll & Bute"),
+         la = str_replace(la, "Dumfries and Galloway", "Dumfries & Galloway"),
+         la = str_replace(la, "Perth and Kinross", "Perth & Kinross")) %>% 
+  arrange(la, year)
+
+simd_2020
+```
+
+### Join together
+
+```{r}
+overall_data <- 
+  full_join(simd_2006, simd_2009) %>% 
+  full_join(., simd_2012) %>% 
+  full_join(., simd_2016) %>% 
+  full_join(., simd_2020) 
+```
+
+## Tidy
+
+```{r}
+overall_data %<>% 
+  mutate(decile = factor(decile,
+                         levels = c(1:10),
+                                  labels = c("1", "2", "3", "4", "5",
+                                             "6", "7", "8", "9", "10")),
+         year = factor(year,
+                       levels = c("2006", "2009", "2012", "2016", "2020"),
+                       labels = c("2006", "2009", "2012", "2016", "2020"))) %>% 
+  group_by(la, year, decile) %>% 
+  mutate(total_dec_pop = sum(pop)) %>% 
+  ungroup %>% 
+  distinct(la, year, decile, .keep_all = TRUE) %>% 
+  arrange(la, year, decile) %>% 
+  group_by(la, year) %>% 
+  mutate(frq = total_dec_pop/sum(total_dec_pop)) %>% 
+  ungroup %>% 
+  select(la, year, decile, frq)
+```
+
+
+```{r}
+rm(list = c("post_2016_decile", "pre_2016_decile", "simd_2006", "simd_2009", 
+            "simd_2012", "simd_2016", "simd_2020"))
+overall_data
+```
+
+
+
+## Plot
+
+```{r, fig.width=20, fig.height=18}
+base_plot <- 
+  overall_data %>% 
+  ggplot(aes(decile, frq, fill = decile)) +
+  geom_col() +
+  scale_fill_ptol(guide = guide_legend(nrow = 1),
+                  labels = c("1-most deprived", "2", "3", "4", "5",
+                             "6", "7", "8", "9", "10-most affluent")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  facet_wrap(~la, strip.position = "bottom") +
+  theme(legend.position = "bottom",
+        axis.text.x = element_blank(),
+        plot.subtitle = element_text(size = 30))  
+
+anime <- 
+  base_plot +
+  transition_states(year,
+                    transition_length = 6,
+                    state_length = 3) +
+  ease_aes("cubic-in-out") +
+  labs(subtitle = "Year: {closest_state}", 
+       title = "Change in percentage living in SIMD deciles by Local Authority",
+       x = "",
+       y = "",
+       fill = "SIMD Decile",
+       caption = "Data from https://www.gov.scot/publications/scottish-index-of-multiple-deprivation-2020-data-zone-look-up/")
+    
+
+
+animate(anime, width = 1400, height = 1000)
+```
+
+
+
+```{r}
+anim_save(filename = "plots/simd.gif", animation = last_animation())
+```
+
+
+# Sesssion Info
+
+```{r}
+devtools::session_info()
+```
+
