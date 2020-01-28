@@ -88,3 +88,36 @@ simd_la
 ggsave("simd_2020_plot.png", simd_la, width = 20, height = 18)
 ```
 
+```{r fig.width=16, fig.height=9}
+clean_simd %>% 
+  filter(la_name %in% c("Glasgow City", "City of Edinburgh")) %>% 
+  ggplot(aes(simd2020_decile, frq, fill = simd2020_decile)) +
+  geom_col() +
+  scale_fill_ptol(guide = guide_legend(nrow = 1),
+                  labels = c("1-most deprived", "2", "3", "4", "5",
+                             "6", "7", "8", "9", "10-most affluent")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  facet_wrap(~la_name, strip.position = "bottom") +
+  theme(legend.position = "bottom",
+        axis.text.x = element_blank(),
+        plot.caption = element_text(size = 12)) +
+  labs(title = "Percentage of individuals in SIMD 2020 deciles",
+       subtitle = "A tale of two cities",
+       x = "",
+       y = "",
+       fill = "SIMD decile", 
+       caption = "Data from https://www.gov.scot/publications/scottish-index-of-multiple-deprivation-2020-data-zone-look-up/") -> simd_la_2cities
+simd_la_2cities
+```
+
+```{r}
+ggsave("simd_2020_2cities.png", simd_la_2cities, width = 16, height = 9)
+```
+
+
+## Session Info
+
+```{r}
+devtools::session_info()
+```
+
