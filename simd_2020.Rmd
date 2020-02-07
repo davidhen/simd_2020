@@ -24,7 +24,8 @@ library(tidyverse)
 library(ggthemes)
 library(readxl)
 library(janitor)
-theme_set(theme_minimal(base_size = 26, base_family = "Roboto"))
+theme_set(theme_minimal(base_size = 26, base_family = "Roboto") +
+            theme(panel.grid.minor = element_blank()))
 ```
 
 
@@ -109,6 +110,10 @@ clean_simd %>%
        caption = "Data from https://www.gov.scot/publications/scottish-index-of-multiple-deprivation-2020-data-zone-look-up/") -> simd_la_2cities
 simd_la_2cities
 ```
+
+*Polar plots*???
+
+
 
 ```{r}
 ggsave("plots/simd_2020_2cities.png", simd_la_2cities, width = 16, height = 9)
