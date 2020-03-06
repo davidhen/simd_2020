@@ -193,7 +193,7 @@ simd_hb
 ## Save
 
 ```{r}
-ggsave("plots/simd_2020_plot_hb.png", simd_hb, width = 16, height = 9)
+ggsave("plots/simd_2020_plot_hb.png", simd_hb, width = 20, height = 18)
 ```
 
 *Polar plots*???
